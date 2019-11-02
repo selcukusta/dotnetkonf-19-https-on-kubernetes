@@ -1,0 +1,64 @@
+kind: Deployment
+apiVersion: apps/v1beta1
+metadata:
+  name: dotnetkonf-ce
+spec:
+  revisionHistoryLimit: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: dotnetkonf-ce
+    spec:
+      restartPolicy: Always
+      containers:
+        - name: dotnetkonf-ce
+          image: selcukusta/dotnetkonf-sample-cert-excluded:1.0.0
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: CONTAINS_CERTIFICATE
+              value: "1"
+            - name: ASPNETCORE_Kestrel__Certificates__Default__Password
+              valueFrom:
+                secretKeyRef:
+                  name: dotnet-konf-sample-com-literal
+                  key: PWD
+            - name: ASPNETCORE_Kestrel__Certificates__Default__Path
+              valueFrom:
+                secretKeyRef:
+                  name: dotnet-konf-sample-com-literal
+                  key: CERTIFICATE_PATH
+          volumeMounts:
+            - name: cert-file
+              mountPath: "/certificates"
+              readOnly: true
+          ports:
+            - name: https
+              containerPort: 443
+          resources:
+            limits:
+              memory: "200Mi"
+      volumes:
+        - name: cert-file
+          secret:
+            secretName: dotnet-konf-sample-com-file
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: dotnetkonf-ce
+  labels:
+    name: dotnetkonf-ce
+spec:
+  type: ClusterIP
+  selector:
+    app: dotnetkonf-ce
+  ports:
+    - port: 443
+      name: https
+      targetPort: 443
